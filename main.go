@@ -8,13 +8,17 @@ import (
 )
 
 type model struct {
-	intro string
+	intro     string
+	hunger    int // higher hunger = more full
+	happiness int
 }
 
 // define initial state
 func initialModel() model {
 	return model{
-		intro: "hello, this is your pet!",
+		intro:     "hello, this is your pet!",
+		hunger:    50,
+		happiness: 50,
 	}
 }
 
@@ -32,6 +36,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// what's the key pressed
 		switch msg.String() {
 
+		// key to feed
+		case "f":
+			m.hunger += 10
+			if m.hunger > 100 {
+				m.hunger = 100
+			}
+
+		// key to play:
+		case "p":
+			m.happiness += 10
+			if m.happiness > 100 {
+				m.happiness = 100
+			}
+
 		// key to exit program
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -43,7 +61,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() tea.View {
-	s := m.intro
+	s := fmt.Sprintf("%s\nhunger:%d\nhappiness:%d", m.intro, m.hunger, m.happiness)
+	s += "\n----------------"
+	s += "\n[f]eed [p]lay [q]uit"
 
 	return tea.NewView(s)
 }
