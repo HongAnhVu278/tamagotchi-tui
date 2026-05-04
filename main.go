@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-
+	"time"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -11,24 +11,47 @@ type model struct {
 	intro     string
 	hunger    int // higher hunger = more full
 	happiness int
+	frame     int
 }
+
+// set up tick for time-based animation
+type tickMsg time.Time
+
+// tickCmd() return tea.Cmd
+// which is tea.Tick(...)
+// tea.Tick waits 500ms then runs func(t time.Time) which returns TickMsg
+func tickCmd() tea.Cmd {
+	return tea.Tick(300*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
 
 // define initial state
 func initialModel() model {
 	return model{
-		intro:     "hello, this is your pet!",
-		hunger:    50,
-		happiness: 50,
+		intro:     "hello, i'm bitly!!",
+		hunger:    40,
+		happiness: 40,
+		frame:     0,
+
 	}
 }
 
+// initialize tickCmd so that it sends a TickMsg to Update
 func (m model) Init() tea.Cmd {
-	return nil
+	return tickCmd()
 }
 
 // “something happened” comes in the form of a Msg, which can be any type
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
+	case tickMsg:
+		m.frame = (m.frame + 1) % len(neutralFrames)
+
+		// must return a fresh tea.Tick command on every tick so that further ticks are scheduled
+		return m, tickCmd()
 
 	// is it a key pressed?
 	case tea.KeyPressMsg:
@@ -61,7 +84,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() tea.View {
-	s := fmt.Sprintf("%s\nhunger:%d\nhappiness:%d", m.intro, m.hunger, m.happiness)
+	s := m.intro
+	s += "\n----------------\n"
+
+	// state-based rendering
+
+	if m.happiness < 50 {
+		s += sadFrames[m.frame]
+	} else if m.hunger < 50 {
+		s += hungryFrames[m.frame]
+	} else if m.happiness > 80 && m.hunger > 80 {
+		s += happyFrames[m.frame]
+	} else {
+		s += neutralFrames[m.frame]
+	}
+	// s += fmt.Sprintf("\n[debug] frame=%d", m.frame)
+
+	s += "\n----------------"
+	s += fmt.Sprintf("\nhunger:%d\nhappiness:%d", m.hunger, m.happiness)
 	s += "\n----------------"
 	s += "\n[f]eed [p]lay [q]uit"
 
