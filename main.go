@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -12,6 +16,11 @@ type model struct {
 	hunger    int // higher hunger = more full
 	happiness int
 	frame     int
+}
+
+type saveData struct {
+	Hunger    int `json:"hunger"`
+	Happiness int `json:"happiness"`
 }
 
 // set up tick for time-based animation
@@ -26,15 +35,114 @@ func tickCmd() tea.Cmd {
 	})
 }
 
+func saveFilePath() (string, error) {
+	home, err := os.UserHomeDir()
+
+	if err != nil {
+		return "", err
+	}
+
+	path := filepath.Join(home, ".bitly", "save.json")
+
+	return path, nil
+
+}
+
+func loadDataFromFile() (saveData, error) {
+	// check if file exist
+
+	path, err := saveFilePath()
+	if err != nil {
+		return saveData{}, err
+	}
+
+	_, err = os.Stat(path)
+
+	// if not, create new file with default val + return the default model
+	if errors.Is(err, os.ErrNotExist) {
+
+		initialData := saveData{40, 40}
+
+		//marshall data into json
+		data, err := json.MarshalIndent(initialData, "", "  ")
+		if err != nil {
+			return saveData{}, err
+		}
+
+		// create the dir
+		err = os.MkdirAll(filepath.Dir(path), 0755)
+		if err != nil {
+			return saveData{}, err
+		}
+
+		//write json data to a file
+		err = os.WriteFile(path, data, 0644)
+		if err != nil {
+			return saveData{}, err
+		}
+
+		return initialData, nil
+	} else {
+		// if yes, return model from data file
+		// read the json file
+		data, err := os.ReadFile(path)
+
+		if err != nil {
+			return saveData{}, err
+		}
+
+		// initialize var to hold data
+		var initialData saveData
+
+		// unmarshall json bytes into the struct
+		err = json.Unmarshal(data, &initialData)
+		if err != nil {
+			return saveData{}, err
+		}
+
+		return initialData, nil
+	}
+
+}
+
+func saveDataToFile(m model) error {
+	// get the current data from model
+	// saved to saved Model
+	// marshall to json and overwritee
+
+	var savedData saveData
+
+	savedData.Happiness = m.happiness
+	savedData.Hunger = m.hunger
+
+	path, err := saveFilePath()
+	if err != nil {
+		return err
+	}
+
+	//marshall data into json
+	data, err := json.MarshalIndent(savedData, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	//write data to file
+	err = os.WriteFile(path, data, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // define initial state
-func initialModel() model {
-	return model{
-		intro:     "hello, i'm bitly!!",
-		hunger:    40,
-		happiness: 40,
-		frame:     0,
+func initialModel(data saveData) model {
 
+	return model{
+		intro:     "welcome to bitly",
+		hunger:    data.Hunger,
+		happiness: data.Happiness,
+		frame:     0,
 	}
 }
 
@@ -75,6 +183,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// key to exit program
 		case "ctrl+c", "q":
+			_ = saveDataToFile(m)
 			return m, tea.Quit
 		}
 
@@ -109,7 +218,14 @@ func (m model) View() tea.View {
 }
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	data, err := loadDataFromFile()
+
+	if err != nil {
+		fmt.Println("error loading model", err)
+		os.Exit(1)
+	}
+
+	p := tea.NewProgram(initialModel(data))
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("there's been an error: %v", err)
