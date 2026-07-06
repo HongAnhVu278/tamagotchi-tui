@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -218,17 +219,45 @@ func (m model) View() tea.View {
 }
 
 func main() {
-	data, err := loadDataFromFile()
+	/*
+		TODO:
+		whenever ./bitly commit => append the timestampt line to /.bitly/commits.log
+	*/
+	switch arg := os.Args[0]; arg {
+	case "./bitly":
+		cmd := exec.Command("git", os.Args[1:]...)
 
-	if err != nil {
-		fmt.Println("error loading model", err)
-		os.Exit(1)
-	}
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 
-	p := tea.NewProgram(initialModel(data))
+		if err := cmd.Run(); err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitErr.ExitCode())
+			}
+			os.Exit(1)
+		}
+		home, _ := os.UserHomeDir()
+		f, _ := os.OpenFile(filepath.Join(home, ".bitly", "commits.log"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 
-	if _, err := p.Run(); err != nil {
-		fmt.Printf("there's been an error: %v", err)
-		os.Exit(1)
+		defer f.Close()
+		//
+
+		fmt.Fprintf(f, "%d commit\n", time.Now().Unix())
+
+	default:
+		data, err := loadDataFromFile()
+
+		if err != nil {
+			fmt.Println("error loading model", err)
+			os.Exit(1)
+		}
+
+		p := tea.NewProgram(initialModel(data))
+
+		if _, err := p.Run(); err != nil {
+			fmt.Printf("there's been an error: %v", err)
+			os.Exit(1)
+		}
 	}
 }
