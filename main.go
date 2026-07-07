@@ -10,6 +10,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// TODO: what happens if user open bitly for the first time and no commits.log
+// NOTE: how to handle error more gracefully
+
+const (
+	frameCount  = 6
+	minStat     = 0
+	maxStat     = 100
+	defaultStat = 40
+	feedAmount  = 5
+	playAmount  = 10
+	threshold   = 86400 //5 days
+)
+
 func main() {
 	if len(os.Args) < 2 {
 		data, err := loadDataFromFile()
@@ -66,5 +79,5 @@ func main() {
 
 	defer f.Close()
 
-	fmt.Fprintf(f, "%d commit\n", time.Now().Unix())
+	fmt.Fprintf(f, "%d\n", time.Now().Unix())
 }

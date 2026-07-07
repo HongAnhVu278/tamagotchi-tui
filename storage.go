@@ -33,7 +33,7 @@ func loadDataFromFile() (saveData, error) {
 	// if not, create new file with default val + return the default model
 	if errors.Is(err, os.ErrNotExist) {
 
-		initialData := saveData{Hunger: defaultStat, Happiness: defaultStat}
+		initialData := saveData{Hunger: defaultStat, Happiness: defaultStat, LastRead: 0}
 
 		//marshall data into json
 		data, err := json.MarshalIndent(initialData, "", "  ")
@@ -85,6 +85,7 @@ func saveDataToFile(m model) error {
 
 	savedData.Happiness = m.happiness
 	savedData.Hunger = m.hunger
+	savedData.LastRead = m.lastRead
 
 	path, err := bitlyPath("save.json")
 	if err != nil {

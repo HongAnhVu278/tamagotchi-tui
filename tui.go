@@ -8,25 +8,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-const (
-	frameCount  = 6
-	minStat     = 0
-	maxStat     = 100
-	defaultStat = 40
-	feedAmount  = 10
-	playAmount  = 10
-)
-
 type model struct {
 	intro     string
 	hunger    int // higher hunger = more full
 	happiness int
+	lastRead  int64
+	isDead    bool
 	frame     int
 }
 
 type saveData struct {
-	Hunger    int `json:"hunger"`
-	Happiness int `json:"happiness"`
+	Hunger    int   `json:"hunger"`
+	Happiness int   `json:"happiness"`
+	LastRead  int64 `json:"last_read"`
 }
 
 // set up tick for time-based animation
@@ -48,6 +42,7 @@ func initialModel(data saveData) model {
 		intro:     "welcome to bitly",
 		hunger:    data.Hunger,
 		happiness: data.Happiness,
+		lastRead:  data.LastRead,
 		frame:     0,
 	}
 }
@@ -59,9 +54,14 @@ func (m model) Init() tea.Cmd {
 
 // “something happened” comes in the form of a Msg, which can be any type
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
 	switch msg := msg.(type) {
 
 	case tickMsg:
+		m, err := feed(m)
+		_ = err //TODO: stash on model for view (?)
+		m.isDead = isDead(m)
+
 		m.frame = (m.frame + 1) % frameCount
 
 		// must return a fresh tea.Tick command on every tick so that further ticks are scheduled
@@ -103,6 +103,10 @@ func (m model) View() tea.View {
 	s += "\n----------------\n"
 
 	// state-based rendering
+	if m.isDead {
+		s += deadFrames[m.frame]
+		return tea.NewView(s)
+	}
 
 	if m.happiness < 50 {
 		s += sadFrames[m.frame]
@@ -118,6 +122,10 @@ func (m model) View() tea.View {
 	s += fmt.Sprintf("\nhunger:%d\nhappiness:%d", m.hunger, m.happiness)
 	s += "\n----------------"
 	s += "\n[f]eed [p]lay [q]uit"
+
+	if m.lastRead == 0 {
+		s += "\ncommit your code to start the challenge!"
+	}
 
 	return tea.NewView(s)
 }
