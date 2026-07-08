@@ -9,29 +9,18 @@ import (
 	"time"
 )
 
-func feed(m model) (model, error) {
-
-	cursor := m.lastRead
-	hunger := m.hunger
-
-	curr := cursor
-
-	path, err := bitlyPath("commits.log")
-
-	if err != nil {
-		return m, fmt.Errorf("get log path to feed pet: %w", err)
-	}
-
+func readLines(path string) ([]string, error) {
+	var output []string
 	file, err := os.Open(path)
 
 	// if no file exist => no commit/no food yet => completely ok
 	if errors.Is(err, os.ErrNotExist) {
-		return m, nil
+		return nil, nil
 	}
 
-	// commits.log exists => err opening the file
+	// file exists => err opening the file
 	if err != nil {
-		return m, fmt.Errorf("open commits.log: %w", err)
+		return nil, fmt.Errorf("open file: %w", err)
 	}
 
 	defer file.Close()
@@ -40,31 +29,50 @@ func feed(m model) (model, error) {
 
 	for scanner.Scan() {
 		lineStr := scanner.Text()
+		output = append(output, lineStr)
+	}
 
-		ts, err := strconv.ParseInt(lineStr, 10, 64)
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan file: %w", err)
+	}
 
+	return output, nil
+
+}
+
+func applyCommits(hunger int, cursor int64, lines []string) (int, int64) {
+	for _, line := range lines {
+		ts, err := strconv.ParseInt(line, 10, 64)
 		if err != nil {
-			// TODO: count skipped lines and render instead
-			// log.Printf("not a valid timestamp: %v", err)
 			continue
 		}
-
 		if ts > cursor {
 			hunger += feedAmount
 			if hunger > maxStat {
 				hunger = maxStat
 			}
-
-			curr = ts
+			cursor = ts
 		}
 	}
+	return hunger, cursor
+}
 
-	if err := scanner.Err(); err != nil {
-		return m, fmt.Errorf("scan commits.log: %w", err)
+func feed(m model) (model, error) {
+
+	path, err := bitlyPath("commits.log")
+
+	if err != nil {
+		return m, fmt.Errorf("get log path to feed pet: %w", err)
 	}
 
-	m.lastRead = curr
-	m.hunger = hunger
+	lines, err := readLines(path)
+
+	if err != nil {
+		return m, fmt.Errorf("get output from log file: %w", err)
+	}
+
+	m.hunger, m.lastRead = applyCommits(m.hunger, m.lastRead, lines)
+
 	return m, nil
 }
 
