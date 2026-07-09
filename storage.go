@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -104,5 +105,61 @@ func saveDataToFile(m model) error {
 		return fmt.Errorf("write data to file: %w", err)
 	}
 
+	return nil
+}
+
+func readLines(path string) ([]string, error) {
+	var output []string
+	file, err := os.Open(path)
+
+	// if no file exist => no commit/no food yet => completely ok
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+
+	// file exists => err opening the file
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		lineStr := scanner.Text()
+		output = append(output, lineStr)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan file: %w", err)
+	}
+
+	return output, nil
+
+}
+
+func appendLine(name string, line string) error {
+	path, err := bitlyPath(name)
+
+	if err != nil {
+		return fmt.Errorf("resolve log path: %v", err)
+	}
+
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create %s: %v", dir, err)
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("open %s: %v", f, err)
+	}
+
+	defer f.Close()
+	if _, err := fmt.Fprintf(f, "%s\n", line); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+
+	}
 	return nil
 }

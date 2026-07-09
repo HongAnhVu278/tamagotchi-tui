@@ -5,7 +5,9 @@ import (
 
 	"time"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type model struct {
@@ -15,6 +17,7 @@ type model struct {
 	lastRead  int64
 	isDead    bool
 	frame     int
+	textInput textinput.Model
 }
 
 type saveData struct {
@@ -39,21 +42,23 @@ func tickCmd() tea.Cmd {
 func initialModel(data saveData) model {
 
 	return model{
-		intro:     "welcome to bitly",
+		intro:     "hi! i'm bitly",
 		hunger:    data.Hunger,
 		happiness: data.Happiness,
 		lastRead:  data.LastRead,
 		frame:     0,
+		textInput: newTextInput(),
 	}
 }
 
 // initialize tickCmd so that it sends a TickMsg to Update
 func (m model) Init() tea.Cmd {
-	return tickCmd()
+	return tea.Batch(tickCmd(), textinput.Blink)
 }
 
 // “something happened” comes in the form of a Msg, which can be any type
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 
@@ -74,31 +79,58 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 
 		// key to feed
-		case "f":
-			m.hunger += feedAmount
-			if m.hunger > maxStat {
-				m.hunger = maxStat
-			}
+		// case "f":
+		// 	m.hunger += feedAmount
+		// 	if m.hunger > maxStat {
+		// 		m.hunger = maxStat
+		// 	}
 
-		// key to play:
-		case "p":
-			m.happiness += playAmount
+		// // key to play:
+		// case "p":
+		// 	m.happiness += playAmount
+		// 	if m.happiness > maxStat {
+		// 		m.happiness = maxStat
+		// 	}
+		case "enter":
+			//record whatever the user enter and log it into gratitude.log
+			/*TODO:
+			+) check if the text is empty
+			+) prompt the answer again after the user enter
+			*/
+			if m.textInput.Value() == "" {
+				break
+			}
+			dailyGrat := m.textInput.Value()
+
+			_ = appendLine("gratitude.log", dailyGrat) // swallow err
+
+			m.happiness += feedAmount
 			if m.happiness > maxStat {
 				m.happiness = maxStat
 			}
+			m.textInput = newTextInput()
 
 		// key to exit program
-		case "ctrl+c", "q":
+		case "ctrl+c", "esc":
 			_ = saveDataToFile(m)
 			return m, tea.Quit
 		}
 
 	}
 
-	return m, nil
+	m.textInput, cmd = m.textInput.Update(msg)
+
+	return m, cmd
 }
 
 func (m model) View() tea.View {
+	//var cursor *tea.Cursor
+
+	// if !m.textInput.VirtualCursor() {
+	// 	cursor = m.textInput.Cursor()
+	// 	cursor.Y += lipgloss.Height(m.headerView())
+	// }
+
 	s := m.intro
 	s += "\n----------------\n"
 
@@ -121,11 +153,30 @@ func (m model) View() tea.View {
 	s += "\n----------------"
 	s += fmt.Sprintf("\nhunger:%d\nhappiness:%d", m.hunger, m.happiness)
 	s += "\n----------------"
-	s += "\n[f]eed [p]lay [q]uit"
 
 	if m.lastRead == 0 {
 		s += "\ncommit your code to start the challenge!"
 	}
 
-	return tea.NewView(s)
+	s += lipgloss.JoinVertical(lipgloss.Top, m.headerView(), m.textInput.View(), m.footerView())
+
+	view := tea.NewView(s)
+	//view.Cursor = cursor
+
+	return view
+}
+
+func (m model) headerView() string {
+	return "\nCheer me up!! What made today a little better? (Or tell me a joke!)\n"
+}
+func (m model) footerView() string { return "\n(esc to quit)\n" }
+
+func newTextInput() textinput.Model {
+	ti := textinput.New()
+	ti.Placeholder = "Words go here, human"
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.SetWidth(20)
+
+	return ti
 }

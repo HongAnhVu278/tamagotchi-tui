@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
-
-// TODO: what happens if user open bitly for the first time and no commits.log
-// NOTE: how to handle error more gracefully
 
 const (
 	frameCount  = 6
@@ -55,29 +51,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	path, err := bitlyPath("commits.log")
-
+	err := appendLine("commits.log", fmt.Sprintf("%d\n", time.Now().Unix()))
 	if err != nil {
-		fmt.Printf("there's been an error: %v", err)
+		fmt.Fprintf(os.Stderr, "record commit: %v\n", err)
 		os.Exit(1)
 	}
-
-	dir := filepath.Dir(path)
-	err = os.MkdirAll(dir, 0755)
-
-	if err != nil {
-		fmt.Printf("there's been an error: %v", err)
-		os.Exit(1)
-	}
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-
-	if err != nil {
-		fmt.Printf("there's been an error: %v", err)
-		os.Exit(1)
-	}
-
-	defer f.Close()
-
-	fmt.Fprintf(f, "%d\n", time.Now().Unix())
 }
