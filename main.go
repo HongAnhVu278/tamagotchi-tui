@@ -37,23 +37,37 @@ func main() {
 		return
 
 	}
+	switch os.Args[1] {
+	case "speak":
+		speakLine, err := speak()
 
-	cmd := exec.Command("git", os.Args[1:]...)
-
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			os.Exit(exitErr.ExitCode())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "speak: %v\n", err)
+			os.Exit(1)
 		}
-		os.Exit(1)
+
+		fmt.Println(speakLine)
+		return
+	default:
+		cmd := exec.Command("git", os.Args[1:]...)
+
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitErr.ExitCode())
+			}
+			os.Exit(1)
+		}
+
+		err := appendLine("commits.log", fmt.Sprintf("%d\n", time.Now().Unix()))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "record commit: %v\n", err)
+			os.Exit(1)
+		}
+
 	}
 
-	err := appendLine("commits.log", fmt.Sprintf("%d\n", time.Now().Unix()))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "record commit: %v\n", err)
-		os.Exit(1)
-	}
 }

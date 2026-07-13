@@ -108,9 +108,9 @@ func saveDataToFile(m model) error {
 	return nil
 }
 
-func readLines(path string) ([]string, error) {
+func readLines(name string) ([]string, error) {
 	var output []string
-	file, err := os.Open(path)
+	file, err := os.Open(name)
 
 	// if no file exist => no commit/no food yet => completely ok
 	if errors.Is(err, os.ErrNotExist) {

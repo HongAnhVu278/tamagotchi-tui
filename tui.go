@@ -140,11 +140,11 @@ func (m model) View() tea.View {
 		return tea.NewView(s)
 	}
 
-	if m.happiness < 50 {
-		s += sadFrames[m.frame]
-	} else if m.hunger < 50 {
+	if m.hunger < 45 {
 		s += hungryFrames[m.frame]
-	} else if m.happiness > 80 && m.hunger > 80 {
+	} else if m.happiness < 45 {
+		s += sadFrames[m.frame]
+	} else if m.happiness >= 45 && m.hunger >= 45 {
 		s += happyFrames[m.frame]
 	} else {
 		s += neutralFrames[m.frame]
@@ -155,7 +155,7 @@ func (m model) View() tea.View {
 	s += "\n----------------"
 
 	if m.lastRead == 0 {
-		s += "\ncommit your code to start the challenge!"
+		s += "\nCommit your code to start the challenge!"
 	}
 
 	s += lipgloss.JoinVertical(lipgloss.Top, m.headerView(), m.textInput.View(), m.footerView())
