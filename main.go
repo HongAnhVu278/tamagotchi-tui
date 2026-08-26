@@ -20,6 +20,10 @@ const (
 	hungerDecayPerDay    = 20.0
 	happinessDecayPerDay = 10.0
 
+	sadBelow      = 50
+	hungryBelow   = 50
+	thrivingAbove = 80
+
 	secondsPerDay = 86400
 	threshold     = 5 * secondsPerDay // 5 days with no commit = death
 )

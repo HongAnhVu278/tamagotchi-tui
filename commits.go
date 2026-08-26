@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func applyCommits(hunger float64, cursor int64, lines []string) (float64, int64) {
+func applyCommits(hunger float64, cursor int64, lines []string, hatched bool) (float64, int64) {
 	for _, line := range lines {
 		ts, err := strconv.ParseInt(line, 10, 64)
 		if err != nil {
@@ -15,8 +15,9 @@ func applyCommits(hunger float64, cursor int64, lines []string) (float64, int64)
 		if ts <= cursor {
 			continue
 		}
-
-		hunger = decayed(hunger, cursor, ts, hungerDecayPerDay)
+		if hatched {
+			hunger = decayed(hunger, cursor, ts, hungerDecayPerDay)
+		}
 		hunger = clamp(hunger + feedAmount)
 		cursor = ts
 	}
@@ -37,17 +38,21 @@ func feed(m model) (model, error) {
 		return m, fmt.Errorf("get output from log file: %w", err)
 	}
 
-	m.hunger, m.lastRead = applyCommits(m.hunger, m.lastRead, lines)
+	m.hunger, m.lastRead = applyCommits(m.hunger, m.lastRead, lines, isHatched(m))
 
 	return m, nil
 }
 
 func currentHunger(m model) float64 {
-	return decayed(m.hunger, m.lastRead, time.Now().Unix(), hungerDecayPerDay)
+	if isHatched(m) {
+		return decayed(m.hunger, m.lastRead, time.Now().Unix(), hungerDecayPerDay)
+	}
+	return m.hunger
+
 }
 
 func isDead(m model) bool {
-	if m.lastRead == 0 {
+	if !isHatched(m) {
 		return false // unborn/egg: never fed, can't die yet
 	}
 

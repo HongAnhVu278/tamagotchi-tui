@@ -1,5 +1,6 @@
 # Binary
 /bitly
+/tamagotchi-tui
 *.exe
 
 # Environment

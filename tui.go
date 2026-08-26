@@ -30,6 +30,11 @@ type saveData struct {
 	LastGratitude int64   `json:"last_gratitude"`
 }
 
+// check if the user commit code and add gratitude
+func isHatched(m model) bool {
+	return m.lastRead != 0 && m.lastGratitude != 0
+}
+
 // set up tick for time-based animation
 type tickMsg time.Time
 
@@ -136,16 +141,26 @@ func (m model) View() tea.View {
 		return tea.NewView(s)
 	}
 
-	s += currentFrames(hunger, happiness)[m.frame]
+	// rendering based on hatch:
 
-	s += "\n----------------"
-	s += fmt.Sprintf("\nhunger:%.0f\nhappiness:%.0f", hunger, happiness)
-	s += "\n----------------"
+	if !isHatched(m) {
+		if m.lastRead == 0 {
+			s += "Commit your code to hatch your egg!\n"
+		}
+		if m.lastGratitude == 0 {
+			s += "Write down something you're grateful for to hatch your egg!\n"
+		}
+		s += "----------------\n"
+		s += eggFrames[m.frame]
 
-	if m.lastRead == 0 {
-		s += "\nCommit your code to start the challenge!"
+	} else {
+		s += currentFrames(hunger, happiness)[m.frame]
+
+		s += "\n----------------"
+		s += fmt.Sprintf("\nhunger:%.0f\nhappiness:%.0f", hunger, happiness)
+
 	}
-
+	s += "\n----------------"
 	s += lipgloss.JoinVertical(lipgloss.Top, m.headerView(), m.textInput.View(), m.footerView())
 
 	view := tea.NewView(s)
@@ -154,12 +169,17 @@ func (m model) View() tea.View {
 	return view
 }
 
-// currentFrames picks the animation for the pet's current mood. The *order* of
-// the checks is the priority rule — reordering changes behavior, and the
-// compiler cannot tell you that.
 func currentFrames(hunger, happiness float64) []string {
-	// TODO(human)
-	return neutralFrames
+	switch {
+	case hunger < hungryBelow:
+		return hungryFrames
+	case happiness < sadBelow:
+		return sadFrames
+	case hunger > thrivingAbove && happiness > thrivingAbove:
+		return happyFrames
+	default:
+		return neutralFrames
+	}
 }
 
 func (m model) headerView() string {

@@ -31,5 +31,8 @@ func speak() (string, error) {
 }
 
 func currentHappiness(m model) float64 {
-	return decayed(m.happiness, m.lastGratitude, time.Now().Unix(), happinessDecayPerDay)
+	if isHatched(m) {
+		return decayed(m.happiness, m.lastGratitude, time.Now().Unix(), happinessDecayPerDay)
+	}
+	return m.happiness
 }
