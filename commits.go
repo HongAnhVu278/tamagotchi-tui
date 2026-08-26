@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-func applyCommits(hunger int, cursor int64, lines []string) (int, int64) {
+func applyCommits(hunger float64, cursor int64, lines []string) (float64, int64) {
 	for _, line := range lines {
 		ts, err := strconv.ParseInt(line, 10, 64)
 		if err != nil {
 			continue
 		}
-		if ts > cursor {
-			hunger += feedAmount
-			if hunger > maxStat {
-				hunger = maxStat
-			}
-			cursor = ts
+		if ts <= cursor {
+			continue
 		}
+
+		hunger = decayed(hunger, cursor, ts, hungerDecayPerDay)
+		hunger = clamp(hunger + feedAmount)
+		cursor = ts
 	}
 	return hunger, cursor
 }
@@ -40,6 +40,10 @@ func feed(m model) (model, error) {
 	m.hunger, m.lastRead = applyCommits(m.hunger, m.lastRead, lines)
 
 	return m, nil
+}
+
+func currentHunger(m model) float64 {
+	return decayed(m.hunger, m.lastRead, time.Now().Unix(), hungerDecayPerDay)
 }
 
 func isDead(m model) bool {

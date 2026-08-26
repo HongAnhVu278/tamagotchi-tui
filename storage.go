@@ -34,7 +34,7 @@ func loadDataFromFile() (saveData, error) {
 	// if not, create new file with default val + return the default model
 	if errors.Is(err, os.ErrNotExist) {
 
-		initialData := saveData{Hunger: defaultStat, Happiness: defaultStat, LastRead: 0}
+		initialData := saveData{Hunger: defaultStat, Happiness: defaultStat, LastRead: 0, LastGratitude: 0}
 
 		//marshall data into json
 		data, err := json.MarshalIndent(initialData, "", "  ")
@@ -87,6 +87,7 @@ func saveDataToFile(m model) error {
 	savedData.Happiness = m.happiness
 	savedData.Hunger = m.hunger
 	savedData.LastRead = m.lastRead
+	savedData.LastGratitude = m.lastGratitude
 
 	path, err := bitlyPath("save.json")
 	if err != nil {
@@ -97,6 +98,10 @@ func saveDataToFile(m model) error {
 	data, err := json.MarshalIndent(savedData, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshall data into json: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("create save dir: %w", err)
 	}
 
 	//write data to file
@@ -153,7 +158,7 @@ func appendLine(name string, line string) error {
 
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("open %s: %v", f, err)
+		return fmt.Errorf("open %s: %w", path, err)
 	}
 
 	defer f.Close()

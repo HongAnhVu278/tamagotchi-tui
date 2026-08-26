@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand/v2"
+	"time"
 )
 
 func speak() (string, error) {
@@ -27,4 +28,8 @@ func speak() (string, error) {
 	speakLine := lines[randomIdx]
 
 	return speakLine, nil
+}
+
+func currentHappiness(m model) float64 {
+	return decayed(m.happiness, m.lastGratitude, time.Now().Unix(), happinessDecayPerDay)
 }

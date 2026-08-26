@@ -14,9 +14,14 @@ const (
 	minStat     = 0
 	maxStat     = 100
 	defaultStat = 40
-	feedAmount  = 5
-	playAmount  = 10
-	threshold   = 86400 //5 days
+	feedAmount  = 10 // hunger gained per commit
+	playAmount  = 10 // happiness gained per gratitude entry
+
+	hungerDecayPerDay    = 20.0
+	happinessDecayPerDay = 10.0
+
+	secondsPerDay = 86400
+	threshold     = 5 * secondsPerDay // 5 days with no commit = death
 )
 
 func runTui() error {
@@ -57,9 +62,14 @@ func runGit() error {
 		return err
 	}
 
-	err := appendLine("commits.log", fmt.Sprintf("%d\n", time.Now().Unix()))
+	// only a commit feeds the pet
+	if os.Args[1] != "commit" {
+		return nil
+	}
+
+	err := appendLine("commits.log", fmt.Sprintf("%d", time.Now().Unix()))
 	if err != nil {
-		return fmt.Errorf("record commit: %w\n", err)
+		return fmt.Errorf("record commit: %w", err)
 	}
 
 	return nil

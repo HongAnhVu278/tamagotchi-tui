@@ -10,20 +10,24 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// hunger/happiness are stored as of their anchor (lastRead / lastGratitude),
+// not as of now. Read them through currentHunger / currentHappiness.
 type model struct {
-	intro     string
-	hunger    int // higher hunger = more full
-	happiness int
-	lastRead  int64
-	isDead    bool
-	frame     int
-	textInput textinput.Model
+	intro         string
+	hunger        float64 // higher hunger = more full
+	happiness     float64
+	lastRead      int64 // commit ts: log cursor + hunger anchor
+	lastGratitude int64 // happiness anchor
+	isDead        bool
+	frame         int
+	textInput     textinput.Model
 }
 
 type saveData struct {
-	Hunger    int   `json:"hunger"`
-	Happiness int   `json:"happiness"`
-	LastRead  int64 `json:"last_read"`
+	Hunger        float64 `json:"hunger"`
+	Happiness     float64 `json:"happiness"`
+	LastRead      int64   `json:"last_read"`
+	LastGratitude int64   `json:"last_gratitude"`
 }
 
 // set up tick for time-based animation
@@ -42,12 +46,13 @@ func tickCmd() tea.Cmd {
 func initialModel(data saveData) model {
 
 	return model{
-		intro:     "hi! i'm bitly",
-		hunger:    data.Hunger,
-		happiness: data.Happiness,
-		lastRead:  data.LastRead,
-		frame:     0,
-		textInput: newTextInput(),
+		intro:         "hi! i'm bitly",
+		hunger:        data.Hunger,
+		happiness:     data.Happiness,
+		lastRead:      data.LastRead,
+		lastGratitude: data.LastGratitude,
+		frame:         0,
+		textInput:     newTextInput(),
 	}
 }
 
@@ -78,19 +83,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// what's the key pressed
 		switch msg.String() {
 
-		// key to feed
-		// case "f":
-		// 	m.hunger += feedAmount
-		// 	if m.hunger > maxStat {
-		// 		m.hunger = maxStat
-		// 	}
-
-		// // key to play:
-		// case "p":
-		// 	m.happiness += playAmount
-		// 	if m.happiness > maxStat {
-		// 		m.happiness = maxStat
-		// 	}
 		case "enter":
 			//record whatever the user enter and log it into gratitude.log
 			/*TODO:
@@ -104,10 +96,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			_ = appendLine("gratitude.log", dailyGrat) // swallow err
 
-			m.happiness += feedAmount
-			if m.happiness > maxStat {
-				m.happiness = maxStat
-			}
+			now := time.Now().Unix()
+			m.happiness = decayed(m.happiness, m.lastGratitude, now, happinessDecayPerDay)
+			m.happiness = clamp(m.happiness + playAmount)
+			m.lastGratitude = now
+
 			m.textInput = newTextInput()
 
 		// key to exit program
@@ -131,6 +124,9 @@ func (m model) View() tea.View {
 	// 	cursor.Y += lipgloss.Height(m.headerView())
 	// }
 
+	hunger := currentHunger(m)
+	happiness := currentHappiness(m)
+
 	s := m.intro
 	s += "\n----------------\n"
 
@@ -140,18 +136,10 @@ func (m model) View() tea.View {
 		return tea.NewView(s)
 	}
 
-	if m.hunger < 45 {
-		s += hungryFrames[m.frame]
-	} else if m.happiness < 45 {
-		s += sadFrames[m.frame]
-	} else if m.happiness >= 45 && m.hunger >= 45 {
-		s += happyFrames[m.frame]
-	} else {
-		s += neutralFrames[m.frame]
-	}
+	s += currentFrames(hunger, happiness)[m.frame]
 
 	s += "\n----------------"
-	s += fmt.Sprintf("\nhunger:%d\nhappiness:%d", m.hunger, m.happiness)
+	s += fmt.Sprintf("\nhunger:%.0f\nhappiness:%.0f", hunger, happiness)
 	s += "\n----------------"
 
 	if m.lastRead == 0 {
@@ -164,6 +152,14 @@ func (m model) View() tea.View {
 	//view.Cursor = cursor
 
 	return view
+}
+
+// currentFrames picks the animation for the pet's current mood. The *order* of
+// the checks is the priority rule — reordering changes behavior, and the
+// compiler cannot tell you that.
+func currentFrames(hunger, happiness float64) []string {
+	// TODO(human)
+	return neutralFrames
 }
 
 func (m model) headerView() string {
