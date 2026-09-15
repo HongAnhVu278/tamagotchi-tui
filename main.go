@@ -14,7 +14,7 @@ const (
 	minStat     = 0
 	maxStat     = 100
 	defaultStat = 40
-	feedAmount  = 10 // hunger gained per commit
+	feedAmount  = 20 // hunger gained per commit
 	playAmount  = 10 // happiness gained per gratitude entry
 
 	hungerDecayPerDay    = 20.0
