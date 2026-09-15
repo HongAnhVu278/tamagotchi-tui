@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"time"
@@ -80,32 +82,53 @@ func runGit() error {
 
 }
 
-func main() {
-	var err error
-	if len(os.Args) < 2 {
-		err = runTui()
+// usage writes bitly's own help text. Takes an io.Writer so "help" can print
+// to stdout (it's the answer) while an unknown command prints to stderr.
+func usage(w io.Writer) {
+	fmt.Fprint(w, `bitly - a terminal pet fed by your git commits
 
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		return
+usage:
+  bitly              launch the pet (same as "bitly run")
+  bitly run          launch the pet
+  bitly commit ...   run "git commit ..." and feed the pet on success
+  bitly speak        print a random line from your gratitude log
+  bitly help         show this message
+
+everything after "bitly commit" is passed straight through to git:
+  bitly commit -m "fix the thing"
+  bitly commit --amend --no-edit
+`)
+}
+
+func main() {
+	cmd := "run"
+	if len(os.Args) > 1 {
+		cmd = os.Args[1]
 	}
 
-	switch os.Args[1] {
+	var err error
+
+	switch cmd {
 	case "speak":
 		err = runSpeak()
-
-	default:
+	case "run":
+		err = runTui()
+	case "commit":
 		err = runGit()
+	case "help", "--help", "-h":
+		usage(os.Stdout)
+	default:
+		fmt.Fprintf(os.Stderr, "bitly: unknown command %q\n\n", cmd)
+		usage(os.Stderr)
+		os.Exit(2)
 	}
 
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.ExitCode())
 		}
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, "bitly:", err)
 		os.Exit(1)
 	}
-
 }
